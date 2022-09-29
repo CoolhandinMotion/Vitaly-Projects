@@ -111,8 +111,9 @@ def inclination_snap_shot():
     return inclination_matrix-gravity_matrix,shuffled_cluster_key_list
 def ISMS_1d(epoch=10):
     for i in range(epoch):
+        exchanged_pixel_set.clear()
         epoch_start=time.time()
-        entropy_sum=sum([ref_dic[x][3] for x in ref_dic])
+        # entropy_sum=sum([ref_dic[x][3] for x in ref_dic])
         # print(f"Beginning Entropy was..{np.around(entropy_sum,decimals=3)}..in total")
         snap_matrix,shuffled_cluster_key=inclination_snap_shot()
         merge_set, absorption_dict,loss_dict=processing_absorption_merge(snap_matrix,shuffled_cluster_key)
@@ -127,16 +128,20 @@ def ISMS_1d(epoch=10):
         print(f"Ending Entropy was..{np.around(entropy_sum,decimals=3)}..in total")
         print(f"This was epoch...{i}...and it took..{np.around(time.time() - epoch_start, decimals=2)} Seconds")
         print("///////////////////////////////////////")
+        if len(exchanged_pixel_set)<total_pixel_num*portion_pixel_exchanged_to_halt:
+            print(f"\nNot enough pixel exchanges. Exiting ISMS loop\n")
+            break
 def handle_absorptions(absorption_dict,loss_dict):
     # ///absorption_dict contains flattened_pixel_indices for each cluster to be added////
     for cluster in list(absorption_dict.keys()):
-        dic[cluster]=dic[cluster].union(absorption_dict[cluster])
+        dic[cluster].update(absorption_dict[cluster])
+        exchanged_pixel_set.update(absorption_dict[cluster])
         update_cluster_ref_dict(cluster, feedback, k)
         for pixel_index in absorption_dict[cluster]:
             reverse_dic[pixel_index]=cluster
     # ///loss_dict contains flattened_pixel_indices for each cluster to be removed////
     for cluster in list(loss_dict.keys()):
-        dic[cluster]=dic[cluster].difference(loss_dict[cluster])
+        dic[cluster].difference_update(loss_dict[cluster])
         if len(dic[cluster])<=2:
             del dic[cluster]
             del ref_dic[cluster]
@@ -150,7 +155,8 @@ def handle_merges(merge_set):
         c1,c2=frz[0],frz[1]
         if (c1 in ref_dic) and (c2 in ref_dic) and (c1 != c2):
             if np.abs(ref_dic[c1][0]-ref_dic[c2][0])<merge_threshold:
-                dic[c1]=dic[c1].union(dic[c2])
+                dic[c1].update(dic[c2])
+                exchanged_pixel_set.update(dic[c2])
                 for pixel_index in dic[c2]:
                     reverse_dic[pixel_index]=c1
                 update_cluster_ref_dict(c1,feedback,k)
@@ -212,6 +218,7 @@ algorithm_start=time.time()
 dic=defaultdict(set)
 ref_dic=defaultdict()
 reverse_dic=defaultdict()
+exchanged_pixel_set=set()
 # ////parameters////
 gravity_constant=np.sqrt(2*np.pi)
 t=.1
@@ -219,6 +226,7 @@ tile_size=20
 merge_threshold=5
 feedback=False
 k=2
+portion_pixel_exchanged_to_halt=.1
 img_url=r"E:\Vitaly Vanchurin\35%2.jpg"
 
 # ////////////////////////////////////////
